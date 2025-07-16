@@ -1,4 +1,4 @@
-package io.github.trquinn76.base.ui.view;
+package io.github.trquinn76.entitydemo.view;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.notification.Notification;
