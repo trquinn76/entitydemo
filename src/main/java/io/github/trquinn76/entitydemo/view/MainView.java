@@ -1,5 +1,6 @@
 package io.github.trquinn76.entitydemo.view;
 
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -9,6 +10,7 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Main;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.listbox.ListBox;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -18,6 +20,8 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 
 import io.github.trquinn76.entitydemo.entity.Entity;
 import io.github.trquinn76.entitydemo.entity.EntityService;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Sinks;
 import software.xdev.vaadin.maps.leaflet.MapContainer;
 import software.xdev.vaadin.maps.leaflet.basictypes.LLatLng;
 import software.xdev.vaadin.maps.leaflet.layer.raster.LTileLayer;
@@ -45,6 +49,12 @@ public final class MainView extends Main {
     private LComponentManagementRegistry mapRegistry;
     private LMap map;
     private Set<LMarker> markers = new HashSet<>();
+    
+    private Flux<MouseMoveData> flux;
+    private Sinks.Many<MouseMoveData> sink;
+    
+    private Span coordinateLabel;
+    private Span pointLabel;
 
     MainView(EntityService entityService) {
         this.entityService = Objects.requireNonNull(entityService);
@@ -55,8 +65,18 @@ public final class MainView extends Main {
         
         Div entityManagementDiv = initEntityManagementDiv();
         Div mapDiv = initMapDiv();
+        Div movementDiv = initMovementDiv();
         
-        add(mapDiv, entityManagementDiv);
+        add(mapDiv, entityManagementDiv, movementDiv);
+        
+        sink = Sinks.many().multicast().onBackpressureBuffer();
+        flux = sink.asFlux().sample(Duration.ofMillis(50));
+        flux.subscribe(mouseMoveData -> {
+            ui.access(() -> {
+                coordinateLabel.setText("Coordinate: " + mouseMoveData.lat() + ", " + mouseMoveData.lng());
+                pointLabel.setText("X: " + mouseMoveData.x() + ", Y: " + mouseMoveData.y());
+            });
+        });
         
         initMapEventCallbacks();
     }
@@ -97,6 +117,12 @@ public final class MainView extends Main {
         eastDegrees = normaliseLongitude(eastDegrees);
         
         repopulateMarkers(northDegrees, westDegrees, southDegrees, eastDegrees);
+    }
+    
+    @ClientCallable
+    public void mouseMove(double lat, double lng, double x, double y) {
+        MouseMoveData data = new MouseMoveData(lat, lng, x, y);
+        sink.tryEmitNext(data);
     }
     
     private void repopulateMarkers(double northDegrees, double westDegrees, double southDegrees, double eastDegrees) {
@@ -220,6 +246,28 @@ public final class MainView extends Main {
         return mapDiv;
     }
     
+    private Div initMovementDiv() {
+        Div movementDiv = new Div();
+        movementDiv.setId("movementDiv");
+        
+        VerticalLayout vertLayout = new VerticalLayout();
+        coordinateLabel = new Span();
+        coordinateLabel.setHeight("20px");
+        coordinateLabel.setWidth("420px");
+        coordinateLabel.setText("none");
+        pointLabel = new Span();
+        pointLabel.setHeight("20px");
+        pointLabel.setWidth("420px");
+        pointLabel.setText("none");
+        vertLayout.add(coordinateLabel, pointLabel);
+        vertLayout.setWidth("420px");
+        vertLayout.setHeight("80px");
+        
+        movementDiv.add(vertLayout);
+        
+        return movementDiv;
+    }
+    
     private void initMapEventCallbacks() {
         ui.access(() -> {
             map.on("dblclick", "e => document.getElementById('" + ID + "').$server.mapDblClicked(e.latlng.lat, e.latlng.lng)");
@@ -227,6 +275,12 @@ public final class MainView extends Main {
                     + "const bounds = e.target.getBounds(); "
                     + "document.getElementById('" + ID + "').$server.moveEnd(bounds._northEast.lat, bounds._southWest.lng, bounds._southWest.lat, bounds._northEast.lng); "
                     + "}");
+            
+            map.on("mousemove", "e => { "
+                    + "document.getElementById('" + ID + "').$server.mouseMove(e.latlng.lat, e.latlng.lng, e.containerPoint.x, e.containerPoint.y); "
+                    + "}");
         });
     }
+    
+    static record MouseMoveData(double lat, double lng, double x, double y) {}
 }

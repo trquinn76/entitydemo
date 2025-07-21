@@ -21,3 +21,13 @@
   padding: 10px;
   border-radius: 5px;
 }
+
+#movementDiv {
+	position: absolute;
+	bottom: 20px; /* Adjust as needed */
+    right: 80px; /* Adjust as needed */
+	z-index: 20;
+	background-color: rgba(200, 200, 200, 0.8);
+	padding: 10px;
+    border-radius: 5px;
+}
