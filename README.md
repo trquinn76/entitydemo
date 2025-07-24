@@ -98,3 +98,32 @@ the web page is sometimes necessary instead.
 
 See [Vaadin Server Push Configuration](https://vaadin.com/docs/latest/flow/advanced/server-push) for the actual
 documentation.
+
+#### Map Mouse Movement
+
+I was surprised to discover that the [Vaadin Map Component](https://vaadin.com/docs/latest/components/map) does not
+appear to support Mouse Movement Event handling. The component appears to wrap the
+[OpenLayers](https://openlayers.org/) map which does have a mechanism to support reporting the position of the mouse.
+Reporting the position of the mouse pointer has been a consistent piece of functionality I've seen in multiple
+projects involving maps.
+
+So I used this project to experiment with mouse movement events a little. This project is using a third party map
+component, [LeafletMap for Vaadin](https://vaadin.com/directory/component/leafletmap-for-vaadin), because the
+[Vaadin Map Component](https://vaadin.com/docs/latest/components/map) is part of the Commercial License. The
+[LeafletMap for Vaadin](https://vaadin.com/directory/component/leafletmap-for-vaadin) provides a mechanism for
+adding a mouse movement handler, so I have done that.
+
+Handling these events works perfectly fine in my local environment. I have used a [Reactor](https://projectreactor.io/)
+Sink and Flux to manage how often these events are handled in the Java code. It is not difficult to see how the
+same mechanisms in the javascript could be used to similarly manage how often such events are published. That would
+require direct editing of the javascript WebComponent which wraps the Map source. That is beyond the scope of this
+little demo project, and has not been attempted.
+
+In this project I have set the events to cause updates every 50 milliseconds. I found longer times to be visible and
+annoying. Vaadin recommends such regular updates only occur about 4 times a second (or about 250 milliseconds) as
+this helps reduce flooding of the network, and the human eye has difficulty tracking data updating faster than
+that. While 50 millisecond updates on the java side, and as fast as possible on the javascript side is fine in my
+local development environment, I can certainly see how that could become problematic in a real world deployment.
+
+Configuring the rate of updates would easy enough to set up. Allowing run time updates to the sampling rate would
+require more effort, but would appear to be possible as well.
